@@ -44,7 +44,9 @@ parser.add_argument("--gen_attr", action="store_true")
 args = parser.parse_args()
 
 # experiment parameters
-tar = 'mni_cnn'
+tar = '_'.join([args.data, args.model])
+print(tar)
+exit()
 data = args.data
 eps = args.epsilon
 attack = args.attack
@@ -102,12 +104,11 @@ y_train = np.array(list(train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as
 y_test = np.array(list(test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
 eprint('done\n')
 
-# training cnn for mnist classification
+# target classifier
 model = eval(tar)()
-
 loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-### train target model ###
+### train target classifier ###
 eprint('training target classifier ... ')
 
 if exists(f'{MODEL_DIR}/saved_model.pb'):

@@ -1,10 +1,10 @@
 ### non-controllable arguments
-MODEL := cnn		# target model
-DATA := mnist		# target dataset
 ATTR := grad		# attribution methods
 RECONS := ae		# detector network
 
 ### controllable arguments
+MODEL := vgg16		# target model
+DATA := cifar10		# target dataset
 ATTACK := fgsm		# type of adversarial attacks
 EPS := 0.1			# severity of adversarial attack
 GPU := 0			# gpus to use

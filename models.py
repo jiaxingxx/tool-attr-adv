@@ -3,9 +3,9 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import *
 
 # simple cnn for mnist
-class mni_cnn(Model):
+class mnist_cnn(Model):
     def __init__(self):
-        super(mni_cnn, self).__init__()
+        super().__init__()
         self.conv1 = Conv2D(32, 3, activation='relu')
         self.flatten = Flatten()
         self.d1 = Dense(128, activation='relu')
@@ -20,7 +20,7 @@ class mni_cnn(Model):
 # simple autoencoder
 class ae(Model):
     def __init__(self, latent_dim):
-        super(ae, self).__init__()
+        super().__init__()
         self.latent_dim = latent_dim
         self.encoder = Sequential([
             Flatten(),
