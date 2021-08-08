@@ -1,16 +1,12 @@
+from util import *
+from ml_util import *
+
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'    # silence some tensorflow messages
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
-import argparse
-
-# make executions deterministic
-seed = 0
-os.environ['TF_DETERMINISTIC_OPS'] = '0'
-tf.random.set_seed(seed)
-np.random.seed(seed)
 
 from tqdm import tqdm, trange
 import pickle
@@ -23,44 +19,19 @@ from cleverhans.tf2.attacks.momentum_iterative_method import momentum_iterative_
 # import custom modules
 from attribution import *
 from models import *
-from util import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument("model", type=str, choices=['cnn'],
-                    help="type of the target model")
-parser.add_argument("--data", type=str, choices=['mnist'], required=True,
-                    help="evaluation dataset")
-parser.add_argument("--attack", type=str, required=True,
-                    help="attack method used to generate adversarial examples")
-parser.add_argument("--epsilon", type=float, required=True,
-                    help="value of epsilon for adversarial attacks")
-parser.add_argument("--attr", type=str, required=True,
-                    help="type of attribution method")
-parser.add_argument("--recons", type=str, required=True,
-                    help="type of reconstruction method")
-parser.add_argument("--gpu", type=str, required=True,
-                    help="gpu to use")
-parser.add_argument("--gen_attr", action="store_true")
-args = parser.parse_args()
+# experiment arguments
+args = exp_from_arguments()
 
 # experiment parameters
-tar = '_'.join([args.data, args.model])
-print(tar)
-exit()
+tar = args.model_name
+
 data = args.data
 eps = args.epsilon
 attack = args.attack
 attr = args.attr
 recons = args.recons
 gen_attr = args.gen_attr
-
-# designate gpu
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-
-# enable memory growth
-physical_devices = tf.config.list_physical_devices('GPU')
-for d in physical_devices:
-    tf.config.experimental.set_memory_growth(d, True)
 
 atk_dict = {'fgsm'  : ['fast_gradient_method',
                       {'eps': eps, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0}],
@@ -90,23 +61,24 @@ mkdir(dir_names)
 
 # get dataset
 eprint('loading and processing dataset ... ')
-dataset = tfds.load(data, data_dir='data', as_supervised=True)
-train, test = dataset['train'], dataset['test']
+#dataset = tfds.load(data, data_dir='data', as_supervised=True)
+#train, test = dataset['train'], dataset['test']
 
 # normalization
-train = train.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
-test = test.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
+#train = train.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
+#test = test.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
 
-x_train = train.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
-x_test = test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+#x_train = train.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+#x_test = test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
 
-y_train = np.array(list(train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
-y_test = np.array(list(test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
-eprint('done\n')
+#y_train = np.array(list(train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+#y_test = np.array(list(test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+#eprint('done\n')
 
 # target classifier
 model = eval(tar)()
 loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+optimizer = tf.keras.optimizers.Adam(0.001)
 
 ### train target classifier ###
 eprint('training target classifier ... ')
@@ -115,21 +87,23 @@ if exists(f'{MODEL_DIR}/saved_model.pb'):
     model = tf.keras.models.load_model(MODEL_DIR)
 
 else:
-    train_ds = train.shuffle(10000).batch(32)
-    test_ds = test.batch(32)
+    train_ds = args.data_train.shuffle(10000).batch(32)
+    test_ds = args.data_train.batch(32)
 
-    model.compile(optimizer='adam',
+    model.compile(optimizer=optimizer,
                   loss=loss_fn,
                   metrics=['accuracy'])
 
     model.fit(train_ds,
-              epochs=10,
+              epochs=100,
               shuffle=True,
               validation_data=test_ds)
 
     model.save(MODEL_DIR)
 
 eprint('done\n')
+
+exit()
 
 ### generate attributions ###
 eprint('generating attributions ... ')
@@ -313,7 +287,7 @@ for t_label in range(N_LABELS):
 
     # plotting
     plot_results([g_train_t, r_train, g_test_t, r_test,
-                 g_adv_train_t, r_adv_train, g_adv_test_t, r_adv_test],
+                  g_adv_train_t, r_adv_train, g_adv_test_t, r_adv_test],
                 captions=[f'{attr}_train', f'recons_train',
                           f'{attr}_test', f'recons_test',
                           f'{attr}_adv_train', f'recons_adv_train',

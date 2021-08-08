@@ -20,7 +20,7 @@ def model_fn(images, call_model_args, expected_keys=None):
             return {saliency.base.CONVOLUTION_LAYER_VALUES: conv,
                     saliency.base.CONVOLUTION_OUTPUT_GRADIENTS: gradients}
 
-def grad(model, img):
+def gradient(model, img):
     pred = model(np.array([img]))
     pred_cls = np.argmax(pred[0])
     args = {'model': model, 'class': pred_cls}
