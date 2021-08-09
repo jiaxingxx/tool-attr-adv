@@ -3,10 +3,6 @@ import tensorflow as tf
 import numpy as np
 import tensorflow_datasets as tfds
 
-expl_dims = {'jacobian' : 10,
-             'gradient' : 1,
-             'saliency' : 1}
-
 def exp_from_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("model", type=str, choices=['cnn','vgg11','vgg16'],
@@ -37,10 +33,7 @@ def exp_from_arguments():
 
     # target, reconstruction, test datasets
     ret.data_train, ret.data_test = load_dataset(ret.data)
-
     ret.input_shape = ret.data_train.element_spec[0].shape
-    ret.expl_shape = (expl_dims[ret.attr],*ret.input_shape)
-    ret.expl_spec = tf.TensorSpec(shape=ret.expl_shape, dtype=float)
 
     return ret
 

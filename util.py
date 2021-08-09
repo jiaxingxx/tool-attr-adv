@@ -120,8 +120,11 @@ def plot_results(imgs, captions, filename, n=10):
             if j == n:  break
 
             axs[j,i].set_title(str(cap))
-            a = axs[j,i].imshow(img[...,0], cmap="gray")
-            fig.colorbar(a, ax=axs[j,i])
+            if img.shape[-1] == 1:
+                a = axs[j,i].imshow(img[...,0], cmap="gray")
+                #fig.colorbar(a, ax=axs[j,i])
+            else:
+                a = axs[j,i].imshow(img)
             axs[j,i].axis('off')
 
     plt.savefig(filename, bbox_inches='tight', pad_inches=0.5)

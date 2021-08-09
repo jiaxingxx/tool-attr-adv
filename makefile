@@ -1,12 +1,10 @@
-### non-controllable arguments
-ATTR := gradient	# attribution methods
-RECONS := ae		# detector network
-
-### controllable arguments
+### default arguments
 MODEL := cnn		# target model
+ATTR := ig	# attribution methods
+RECONS := cae		# detector network
 DATA := cifar10		# target dataset
 ATTACK := fgsm		# type of adversarial attacks
-EPS := 0.1			# severity of adversarial attack
+EPS := 0.03			# severity of adversarial attack
 GPU := 0			# gpus to use
 SEED := 0			# random seed
 

@@ -126,7 +126,7 @@ class cifar10_cnn(Model):
 
 # simple autoencoder
 class ae(Model):
-    def __init__(self, latent_dim):
+    def __init__(self, input_shape, latent_dim):
         super().__init__()
         self.latent_dim = latent_dim
         self.encoder = Sequential([
@@ -134,8 +134,30 @@ class ae(Model):
             Dense(latent_dim, activation='relu'),
         ])
         self.decoder = Sequential([
-            Dense(784, activation='sigmoid'),
-            Reshape((28, 28, 1))
+            Dense(np.prod(input_shape), activation='sigmoid'),
+            Reshape(input_shape)
+        ])
+
+    def call(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+# convolutional autoencoder
+class cae(Model):
+    def __init__(self, input_shape, latent_dim):
+        super().__init__()
+
+        self.encoder = Sequential([
+            Input(shape=(input_shape)),
+            Conv2D(16, (3, 3), activation='relu', padding='same', strides=2),
+            Conv2D(8, (3, 3), activation='relu', padding='same', strides=2)
+        ])
+
+        self.decoder = Sequential([
+            Conv2DTranspose(8, kernel_size=3, strides=2, activation='relu', padding='same'),
+            Conv2DTranspose(16, kernel_size=3, strides=2, activation='relu', padding='same'),
+            Conv2D(input_shape[-1], kernel_size=(3, 3), activation='sigmoid', padding='same')
         ])
 
     def call(self, x):

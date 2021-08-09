@@ -1,13 +1,6 @@
 from util import *
 from ml_util import *
 
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'    # silence some tensorflow messages
-
-import tensorflow as tf
-import tensorflow_datasets as tfds
-import numpy as np
-
 from tqdm import tqdm, trange
 import pickle
 
@@ -32,6 +25,8 @@ attack = args.attack
 attr = args.attr
 recons = args.recons
 gen_attr = args.gen_attr
+data_train = args.data_train
+data_test = args.data_test
 
 atk_dict = {'fgsm'  : ['fast_gradient_method',
                       {'eps': eps, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0}],
@@ -59,21 +54,15 @@ EXP_DIR = f'figures/{tar}_{recons}_{attr}_{attack}_{eps}'
 dir_names = ['experiments', MODEL_DIR, RECONS_DIR, DATA_DIR, ADV_DIR, 'figures', EXP_DIR]
 mkdir(dir_names)
 
-# get dataset
-eprint('loading and processing dataset ... ')
-#dataset = tfds.load(data, data_dir='data', as_supervised=True)
-#train, test = dataset['train'], dataset['test']
+# processing dataset
+eprint('processing dataset ... ')
+x_train = data_train.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+x_test = data_test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
 
-# normalization
-#train = train.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
-#test = test.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
+y_train = np.array(list(data_train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+y_test = np.array(list(data_test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
 
-#x_train = train.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
-#x_test = test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
-
-#y_train = np.array(list(train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
-#y_test = np.array(list(test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
-#eprint('done\n')
+eprint('done\n')
 
 # target classifier
 model = eval(tar)()
@@ -87,15 +76,15 @@ if exists(f'{MODEL_DIR}/saved_model.pb'):
     model = tf.keras.models.load_model(MODEL_DIR)
 
 else:
-    train_ds = args.data_train.shuffle(10000).batch(32)
-    test_ds = args.data_train.batch(32)
+    train_ds = data_train.shuffle(10000).batch(32)
+    test_ds = data_test.batch(32)
 
     model.compile(optimizer=optimizer,
                   loss=loss_fn,
                   metrics=['accuracy'])
 
     model.fit(train_ds,
-              epochs=100,
+              epochs=30,
               shuffle=True,
               validation_data=test_ds)
 
@@ -103,22 +92,19 @@ else:
 
 eprint('done\n')
 
-exit()
-
 ### generate attributions ###
 eprint('generating attributions ... ')
 
 if exists(f'{DATA_DIR}/{attr}_train') and exists(f'{DATA_DIR}/{attr}_test'):
     g_train = pickle.load(open(f'{DATA_DIR}/{attr}_train','rb'))
     g_test = pickle.load(open(f'{DATA_DIR}/{attr}_test','rb'))
-
 else:
     g_train, g_test = [], []
 
-    for x in tqdm(x_train):
+    for x,_ in tqdm(data_train):
         g_train.append(eval(attr)(model,x))
 
-    for x in tqdm(x_test):
+    for x,_ in tqdm(data_test):
         g_test.append(eval(attr)(model,x))
 
     g_train, g_test = np.array(g_train), np.array(g_test)
@@ -139,7 +125,7 @@ else:
     adv_train_x, adv_train_y = [], []
     adv_test_x, adv_test_y = [], []
 
-    for x in x_train.batch(128):
+    for x,_ in data_train.batch(128):
         x_adv = eval(atk_method)(model, x, **atk_args)
         y_adv = np.argmax(model.predict(x_adv), axis=1)
         adv_train_x.append(x_adv)
@@ -148,7 +134,7 @@ else:
     adv_train_x = tf.concat(adv_train_x, axis=0)
     adv_train_y = tf.concat(adv_train_y, axis=0)
 
-    for x in x_test.batch(128):
+    for x,_ in data_test.batch(128):
         x_adv = eval(atk_method)(model, x, **atk_args)
         y_adv = np.argmax(model.predict(x_adv), axis=1)
         adv_test_x.append(x_adv)
@@ -185,6 +171,7 @@ else:
 
 eprint('done\n')
 
+"""
 ### plotting ###
 eprint('plotting ... ')
 
@@ -202,10 +189,12 @@ eprint('done\n')
 
 exit() if gen_attr else ...
 
+"""
+
 ### reconstruction ###
 eprint('evaluating ...\n')
 
-N_LABELS = 10
+N_LABELS = 1
 
 for t_label in range(N_LABELS):
 
@@ -221,19 +210,20 @@ for t_label in range(N_LABELS):
 
     ### train autoencoder for reconstruction ###
     loss_fn = tf.keras.losses.MeanSquaredError()
+    optimizer = tf.keras.optimizers.Adam(0.001)
 
-    autoencoder = eval(recons)(latent_dim)
+    autoencoder = eval(recons)(g_train[0].shape, latent_dim)
 
     if os.path.exists(f'{RECONS_DIR}/{recons}_{attr}_{t_label}'):
         autoencoder = tf.keras.models.load_model(f'{RECONS_DIR}/{recons}_{attr}_{t_label}')
 
     else:
-        autoencoder.compile(optimizer='adam', loss=loss_fn)
+        autoencoder.compile(optimizer=optimizer, loss=loss_fn)
 
         autoencoder.fit(g_train_t, g_train_t,
                         batch_size=train_batch,
                         shuffle=True,
-                        epochs=10,
+                        epochs=30,
                         validation_data=(g_test_t, g_test_t))
 
         autoencoder.save(f'{RECONS_DIR}/{recons}_{attr}_{t_label}')
