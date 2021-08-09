@@ -5,9 +5,9 @@ import tensorflow_datasets as tfds
 
 def exp_from_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("model", type=str, choices=['cnn','vgg11','vgg16'],
-                    help="type of the target model")
-    parser.add_argument("--data", type=str, choices=['mnist','cifar10'], required=True,
+    parser.add_argument("model", type=str,
+                        help="type of the target model")
+    parser.add_argument("--data", type=str, required=True,
                         help="evaluation dataset")
     parser.add_argument("--attack", type=str, required=True,
                         help="attack method used to generate adversarial examples")
@@ -21,7 +21,6 @@ def exp_from_arguments():
                         help="gpu to use")
     parser.add_argument("--seed", type=int, default=0,
                         help="seed to use")
-    parser.add_argument("--gen_attr", action="store_true")
 
     ret = parser.parse_args()
 
@@ -29,11 +28,11 @@ def exp_from_arguments():
     set_seed(ret.seed)
 
     # names for target and reconstruction models
-    ret.model_name = '_'.join([ret.data, ret.model])
+    ret.target = '_'.join([ret.data, ret.model])
 
     # target, reconstruction, test datasets
-    ret.data_train, ret.data_test = load_dataset(ret.data)
-    ret.input_shape = ret.data_train.element_spec[0].shape
+    ret.train, ret.test = load_dataset(ret.data)
+    ret.input_shape = ret.train.element_spec[0].shape
 
     return ret
 

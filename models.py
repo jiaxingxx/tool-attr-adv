@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import *
+from resnet import *
 
 # cnn for mnist
 class mnist_cnn(Model):

@@ -1,9 +1,9 @@
 ### default arguments
 MODEL := cnn		# target model
-ATTR := ig	# attribution methods
+ATTR := ig			# attribution methods
 RECONS := cae		# detector network
 DATA := cifar10		# target dataset
-ATTACK := fgsm		# type of adversarial attacks
+ATTACK := pgd		# type of adversarial attacks
 EPS := 0.03			# severity of adversarial attack
 GPU := 0			# gpus to use
 SEED := 0			# random seed

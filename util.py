@@ -2,6 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 
+from tqdm import tqdm, trange
 import pickle
 
 import matplotlib
