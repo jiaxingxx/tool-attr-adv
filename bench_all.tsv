@@ -3,3 +3,15 @@ cifar10_cnn	cae	gradient	fgsm	0.1	1.0	0	0.8095	0.8516	0.8516	0.8754	1000	1793
 cifar10_cnn	cae	gradient	fgsm	0.03	1.0	0	0.7649	0.8495	0.8495	0.7445	1000	3569
 cifar10_cnn	cae	gradient	pgd	0.03	1.0	0	0.8246	0.8993	0.8993	0.7196	1000	6733
 cifar10_cnn	cae	gradient	fgsm	0.03	1.0	0	0.7448	0.8366	0.8366	0.6773	1000	3569
+cifar10_cnn	cae	ig	pgd	0.03	1.0	0	0.7136	0.8135	0.8135	0.6444	1000	3309
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	0	0.6989	0.5410	0.5410	0.7322	1000	488
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	1	0.5872	0.5069	0.5069	0.6343	1000	720
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	2	0.7955	0.8814	0.8814	0.6323	1000	6258
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	3	0.8885	0.9406	0.9406	0.5901	1000	15162
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	4	0.8026	0.8874	0.8874	0.5763	1000	7114
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	5	0.7159	0.8240	0.8240	0.5675	1000	4188
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	6	0.8744	0.9322	0.9322	0.6302	1000	12516
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	7	0.7363	0.8311	0.8311	0.6859	1000	3558
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	8	0.6025	0.6608	0.6608	0.6285	1000	1415
+cifar10_resnet	cae	gradient	fgsm	0.03	1.0	9	0.6782	0.7784	0.7784	0.6337	1000	2654
+cifar10_resnet	cae	ig	pgd	0.03	1.0	0	0.5541	0.5470	0.5470	0.5747	1000	969

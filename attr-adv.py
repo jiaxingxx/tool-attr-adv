@@ -161,7 +161,7 @@ eprint('done\n')
 ### reconstruction ###
 eprint('evaluating ...\n')
 
-N_LABELS = 1
+N_LABELS = 10
 
 for t_label in range(N_LABELS):
 
@@ -178,11 +178,11 @@ for t_label in range(N_LABELS):
     ### train autoencoder for reconstruction ###
     eprint('configuring autoencoder ... ')
 
-    ae = train_pred(eval(e.recons)(g_train[0].shape, latent_dim),
-                    train=g_train_t,
-                    test=g_test_t,
-                    dir=f'{RECONS_DIR}/{e.recons}_{e.attr}_{t_label}',
-                    bat_size=bat_size)
+    ae = train_recons(eval(e.recons)(g_train[0].shape, latent_dim),
+                      train=g_train_t,
+                      test=g_test_t,
+                      dir=f'{RECONS_DIR}/{e.recons}_{e.attr}_{t_label}',
+                      bat_size=bat_size)
 
     eprint('done\n')
 

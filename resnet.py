@@ -1,3 +1,5 @@
+# codes from https://github.com/chao-ji/tf-resnet-cifar10
+
 import tensorflow as tf
 from tensorflow.keras import layers, regularizers
 from tensorflow.keras import Model, Sequential
