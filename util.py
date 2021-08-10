@@ -95,15 +95,21 @@ def plot_grads(left, right, n=10, filename=None, lcap=None, rcap=None):
         if lcap is not None:
             axs[i,0].set_title(str(lcap))
 
-        j = axs[i,0].imshow(l[...,0], cmap="gray")
-        fig.colorbar(j, ax=axs[i,0])
+        if l.shape[-1] == 1:
+            j = axs[i,0].imshow(l[...,0], cmap="gray")
+            fig.colorbar(j, ax=axs[i,0])
+        else:
+            axs[i,0].imshow(l)
         axs[i,0].axis('off')
 
         if rcap is not None:
             axs[i,1].set_title(str(rcap))
 
-        j = axs[i,1].imshow(r[...,0], cmap="gray")
-        fig.colorbar(j, ax=axs[i,1])
+        if r.shape[-1] == 1:
+            j = axs[i,1].imshow(r[...,0], cmap="gray")
+            fig.colorbar(j, ax=axs[i,1])
+        else:
+            axs[i,1].imshow(r)
         axs[i,1].axis('off')
 
     plt.savefig(filename, bbox_inches='tight', pad_inches=0.5)
@@ -130,3 +136,9 @@ def plot_results(imgs, captions, filename, n=10):
 
     plt.savefig(filename, bbox_inches='tight', pad_inches=0.5)
     plt.close()
+
+def plot_img(img, filename=None):
+    plt.imshow(img)
+
+    if filename is not None:
+        plt.savefig(filename, bbox_inches='tight', pad_inches=0.5)

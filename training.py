@@ -55,8 +55,7 @@ def train_recons(m, train, test, dir, n_samples=-1, n_epoch=30, bat_size=32):
         return m
 
     m.compile(optimizer=tf.keras.optimizers.Adam(0.001),
-              loss=tf.keras.losses.MeanSquaredError(),
-              metrics=['accuracy'])
+              loss=tf.keras.losses.MeanSquaredError())
 
     h = m.fit(train, train,
               epochs=n_epoch,
@@ -67,7 +66,7 @@ def train_recons(m, train, test, dir, n_samples=-1, n_epoch=30, bat_size=32):
 
     return m
 
-def gen_labels(m, data, bat_size=32):
+def gen_labels(m, data, bat_size=128):
     """ Generates dataset containing (input, pred) for given model and inputs.
 
     Parameters
@@ -84,24 +83,3 @@ def gen_labels(m, data, bat_size=32):
     x,y = x_batch.unbatch(), y_batch.unbatch()
 
     return tf.data.Dataset.zip((x,y))
-
-
-def gen_expl(m, data, expl_fn, expl_spec, dir):
-    """ Generates explanation for given model.
-
-    Parameters
-    ----------
-    m : model being queried
-    data : data used to query model
-    expl_fn : explanation function
-    expl_spec : shape of explanation
-    dir : directory to save and load the data
-    """
-
-    if not os.path.exists(dir):
-        e = data.map(lambda x,y: expl_fn(m,x,y), num_parallel_calls=tf.data.AUTOTUNE)
-        tf.data.experimental.save(e, dir)
-
-    e = tf.data.experimental.load(dir, expl_spec)
-
-    return e

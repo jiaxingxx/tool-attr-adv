@@ -3,6 +3,7 @@ from ml_util import *
 
 from cleverhans.tf2.attacks.fast_gradient_method import fast_gradient_method
 from cleverhans.tf2.attacks.projected_gradient_descent import projected_gradient_descent
+from cleverhans.tf2.attacks.basic_iterative_method import basic_iterative_method
 from cleverhans.tf2.attacks.carlini_wagner_l2 import carlini_wagner_l2
 from cleverhans.tf2.attacks.momentum_iterative_method import momentum_iterative_method
 
@@ -19,6 +20,8 @@ atk_dict = {'fgsm'  : ['fast_gradient_method',
                       {'eps': e.epsilon, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0}],
             'pgd'   : ['projected_gradient_descent',
                       {'eps': e.epsilon, 'eps_iter': 0.01, 'nb_iter': 40, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0}],
+            'bim'   : ['basic_iterative_method',
+                      {'eps': e.epsilon, 'eps_iter': 0.01, 'nb_iter': 40, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0, 'sanity_checks': False}],
             'cw'    : ['carlini_wagner_l2',
                       {'clip_min':0.0, 'clip_max':1.0}],
             'mim'   : ['momentum_iterative_method',
@@ -163,17 +166,26 @@ eprint('evaluating ...\n')
 
 N_LABELS = 10
 
+xc_train = gen_labels(model, e.train)
+xc_test = gen_labels(model, e.test)
+
+cls_train = np.array(list(xc_train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+cls_test = np.array(list(xc_test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+
 for t_label in range(N_LABELS):
 
     ### filtering ###
+    tar_train = np.logical_and(y_train == cls_train, y_train == t_label)
+    tar_test = np.logical_and(y_test == cls_test, y_test == t_label)
+
     cond_train = np.logical_and(adv_train_y == t_label, y_train != t_label)
     cond_test = np.logical_and(adv_test_y == t_label, y_test != t_label)
 
     g_adv_train_t = g_adv_train[cond_train]
     g_adv_test_t = g_adv_test[cond_test]
 
-    g_train_t = g_train[y_train == t_label]
-    g_test_t = g_test[y_test == t_label]
+    g_train_t = g_train[tar_train]
+    g_test_t = g_test[tar_test]
 
     ### train autoencoder for reconstruction ###
     eprint('configuring autoencoder ... ')
