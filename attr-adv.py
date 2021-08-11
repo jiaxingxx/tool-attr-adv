@@ -1,13 +1,9 @@
+# utilities
 from util import *
 from ml_util import *
 
-from cleverhans.tf2.attacks.fast_gradient_method import fast_gradient_method
-from cleverhans.tf2.attacks.projected_gradient_descent import projected_gradient_descent
-from cleverhans.tf2.attacks.basic_iterative_method import basic_iterative_method
-from cleverhans.tf2.attacks.carlini_wagner_l2 import carlini_wagner_l2
-from cleverhans.tf2.attacks.momentum_iterative_method import momentum_iterative_method
-
 # import custom modules
+from attacks import *
 from attribution import *
 from models import *
 from training import *
@@ -25,7 +21,9 @@ atk_dict = {'fgsm'  : ['fast_gradient_method',
             'cw'    : ['carlini_wagner_l2',
                       {'clip_min':0.0, 'clip_max':1.0}],
             'mim'   : ['momentum_iterative_method',
-                      {'eps': e.epsilon, 'clip_min':0.0, 'clip_max':1.0}]}
+                      {'eps': e.epsilon, 'clip_min':0.0, 'clip_max':1.0}],
+            'spsa'  : ['spsa',
+                      {'eps': e.epsilon, 'nb_iter': 40, 'clip_min':0.0, 'clip_max':1.0}]}
 
 atk_method, atk_args = atk_dict[e.attack]
 
@@ -90,6 +88,8 @@ eprint('done\n')
 ### generate adversarial examples ###
 eprint('generating adversarial examples ... ')
 
+### TODO: cleaner code + tqdm progress bar, batched vs. non-batched attacks
+
 if exists(f'{ADV_DIR}/adv_train') and exists(f'{ADV_DIR}/adv_test'):
     (adv_train_x, adv_train_y) = pickle.load(open(f'{ADV_DIR}/adv_train','rb'))
     (adv_test_x, adv_test_y) = pickle.load(open(f'{ADV_DIR}/adv_test','rb'))
@@ -98,7 +98,7 @@ else:
     adv_train_x, adv_train_y = [], []
     adv_test_x, adv_test_y = [], []
 
-    for x,_ in e.train.batch(128):
+    for x,y in e.train.batch(128):
         x_adv = eval(atk_method)(model, x, **atk_args)
         y_adv = np.argmax(model.predict(x_adv), axis=1)
         adv_train_x.append(x_adv)

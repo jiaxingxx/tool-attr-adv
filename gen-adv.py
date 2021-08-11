@@ -1,12 +1,9 @@
+# utilities
 from util import *
 from ml_util import *
 
-from cleverhans.tf2.attacks.fast_gradient_method import fast_gradient_method
-from cleverhans.tf2.attacks.projected_gradient_descent import projected_gradient_descent
-from cleverhans.tf2.attacks.carlini_wagner_l2 import carlini_wagner_l2
-from cleverhans.tf2.attacks.momentum_iterative_method import momentum_iterative_method
-
 # import custom modules
+from attacks import *
 from attribution import *
 from models import *
 from training import *
@@ -18,11 +15,15 @@ e = exp_from_arguments()
 atk_dict = {'fgsm'  : ['fast_gradient_method',
                       {'eps': e.epsilon, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0}],
             'pgd'   : ['projected_gradient_descent',
-                      {'eps': e.epsilon, 'eps_iter': 0.01, 'nb_iter': 40, 'norm': np.inf, 'clip_min': 0.0, 'clip_max': 1.0}],
+                      {'eps': e.epsilon, 'eps_iter': 0.01, 'nb_iter': 40, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0}],
+            'bim'   : ['basic_iterative_method',
+                      {'eps': e.epsilon, 'eps_iter': 0.01, 'nb_iter': 40, 'norm': np.inf, 'clip_min':0.0, 'clip_max':1.0, 'sanity_checks': False}],
             'cw'    : ['carlini_wagner_l2',
-                      {'clip_min': 0.0, 'clip_max': 1.0, 'initial_const': 1e-3, 'learning_rate': 1e-2, 'binary_search_steps': 9}],
+                      {'clip_min':0.0, 'clip_max':1.0}],
             'mim'   : ['momentum_iterative_method',
-                      {'eps': e.epsilon, 'clip_min': 0.0, 'clip_max': 1.0}]}
+                      {'eps': e.epsilon, 'clip_min':0.0, 'clip_max':1.0}],
+            'spsa'  : ['spsa',
+                      {'eps': e.epsilon, 'nb_iter': 40, 'clip_min':0.0, 'clip_max':1.0}]}
 
 atk_method, atk_args = atk_dict[e.attack]
 
@@ -89,8 +90,6 @@ for t_label in range(1):
 
     eprint(f'generating adversarial examples for {t_label} ... ')
 
-    atk_args['targeted'] = True
-
     if exists(f'{ADV_DIR}/adv_train_{t_label}') and exists(f'{ADV_DIR}/adv_test_{t_label}'):
         (adv_train_x, adv_train_y) = pickle.load(open(f'{ADV_DIR}/adv_train_{t_label}','rb'))
         (adv_test_x, adv_test_y) = pickle.load(open(f'{ADV_DIR}/adv_test_{t_label}','rb'))
@@ -102,7 +101,7 @@ for t_label in range(1):
 
         for x,y in e.train.batch(1):
             c = time.time()
-            atk_args['y'] = [0]
+            atk_args['y'] = y
             x_adv = eval(atk_method)(model, x, **atk_args)
             e = time.time()
             y_adv = np.argmax(model.predict(x_adv), axis=1)

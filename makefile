@@ -1,9 +1,9 @@
 ### default arguments
-MODEL := resnet		# target model
+MODEL := cnn		# target model
 ATTR := gradient	# attribution methods
-RECONS := cae		# detector network
-DATA := cifar10		# target dataset
-ATTACK := bim		# type of adversarial attacks
+RECONS := ae		# detector network
+DATA := mnist		# target dataset
+ATTACK := pgd		# type of adversarial attacks
 EPS := 0.03			# severity of adversarial attack
 GPU := 0			# gpus to use
 SEED := 0			# random seed
