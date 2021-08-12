@@ -50,6 +50,14 @@ x_test = e.test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
 y_train = np.array(list(e.train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
 y_test = np.array(list(e.test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
 
+zeros = filt_ds(e.train, 0)
+
+for x,_ in zeros.batch(10):
+    plot_grads(x,x,filename='tt.png')
+    exit()
+
+exit()
+
 eprint('done\n')
 
 ### train target classifier ###
@@ -65,24 +73,8 @@ eprint('done\n')
 
 ### generate attributions ###
 eprint('generating attributions ... ')
-
-if exists(f'{DATA_DIR}/{e.attr}_train') and exists(f'{DATA_DIR}/{e.attr}_test'):
-    g_train = pickle.load(open(f'{DATA_DIR}/{e.attr}_train','rb'))
-    g_test = pickle.load(open(f'{DATA_DIR}/{e.attr}_test','rb'))
-else:
-    g_train, g_test = [], []
-
-    for x,_ in tqdm(e.train):
-        g_train.append(eval(e.attr)(model,x))
-
-    for x,_ in tqdm(e.test):
-        g_test.append(eval(e.attr)(model,x))
-
-    g_train, g_test = np.array(g_train), np.array(g_test)
-
-    pickle.dump(g_train, open(f'{DATA_DIR}/{e.attr}_train','wb'))
-    pickle.dump(g_test, open(f'{DATA_DIR}/{e.attr}_test','wb'))
-
+g_train = gen_attr(model, e.train, eval(e.attr), f'{DATA_DIR}/{e.attr}_train')
+g_test = gen_attr(model, e.test, eval(e.attr), f'{DATA_DIR}/{e.attr}_test')
 eprint('done\n')
 
 ### generate adversarial examples ###
@@ -90,34 +82,8 @@ eprint('generating adversarial examples ... ')
 
 ### TODO: cleaner code + tqdm progress bar, batched vs. non-batched attacks
 
-if exists(f'{ADV_DIR}/adv_train') and exists(f'{ADV_DIR}/adv_test'):
-    (adv_train_x, adv_train_y) = pickle.load(open(f'{ADV_DIR}/adv_train','rb'))
-    (adv_test_x, adv_test_y) = pickle.load(open(f'{ADV_DIR}/adv_test','rb'))
-
-else:
-    adv_train_x, adv_train_y = [], []
-    adv_test_x, adv_test_y = [], []
-
-    for x,y in e.train.batch(128):
-        x_adv = eval(atk_method)(model, x, **atk_args)
-        y_adv = np.argmax(model.predict(x_adv), axis=1)
-        adv_train_x.append(x_adv)
-        adv_train_y.append(y_adv)
-
-    adv_train_x = tf.concat(adv_train_x, axis=0)
-    adv_train_y = tf.concat(adv_train_y, axis=0)
-
-    for x,_ in e.test.batch(128):
-        x_adv = eval(atk_method)(model, x, **atk_args)
-        y_adv = np.argmax(model.predict(x_adv), axis=1)
-        adv_test_x.append(x_adv)
-        adv_test_y.append(y_adv)
-
-    adv_test_x = tf.concat(adv_test_x, axis=0)
-    adv_test_y = tf.concat(adv_test_y, axis=0)
-
-    pickle.dump((adv_train_x, adv_train_y), open(f'{ADV_DIR}/adv_train','wb'))
-    pickle.dump((adv_test_x, adv_test_y), open(f'{ADV_DIR}/adv_test','wb'))
+adv_train_x, adv_train_y = gen_ae(model, e.train, eval(atk_method), atk_args, f'{ADV_DIR}/adv_train')
+adv_test_x, adv_test_y = gen_ae(model, e.test, eval(atk_method), atk_args, f'{ADV_DIR}/adv_train')
 
 eprint('done\n')
 

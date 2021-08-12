@@ -34,6 +34,9 @@ def get_x(img, label):
 def get_y(img, label):
     return label
 
+def filt_ds(ds,l):
+    return ds.filter(lambda _,y: y == l)
+
 # get auc from scores
 def get_score(score, labels):
     return roc_auc_score(labels, score)

@@ -83,3 +83,51 @@ def gen_labels(m, data, bat_size=128):
     x,y = x_batch.unbatch(), y_batch.unbatch()
 
     return tf.data.Dataset.zip((x,y))
+
+def gen_attr(m, data, attr_fn, dir):
+    """ Generates and returns attributions.
+
+    Parameters
+    ----------
+    m: model being queried
+    data: data used to query model, labeled
+    attr_fn: function used to generate attribution
+    dir: directory to save and load the attribution data
+    """
+
+    if os.path.exists(dir):
+        return pickle.load(open(dir,'rb'))
+
+    attr = []
+    for x,_ in tqdm(data):
+        attr.append(attr_fn(model,x))
+
+    pickle.dump(attr, open(dir,'wb'))
+    return attr
+
+def gen_ae(m, data, atk_fn, atk_args, dir, bat_size=128):
+    """ Generates and returns adversarial examples.
+
+    Parameters
+    ----------
+    m: model being queried
+    data: data used to query model, labeled
+    atk_fn: adversarial attack function
+    atk_args: arguments for adversarial attack
+    dir: directory to save and load the attribution data
+    """
+
+    if os.path.exists(dir):
+        return pickle.load(open(dir,'rb'))
+
+    xs, ys = [], []
+    for x,_ in data.batch(bat_size):
+        x_ae = atk_fn(m, x, **atk_args)
+        y_ae = np.argmax(model.predict(x_ae), axis=1)
+        xs.append(x_ae)
+        ys.append(y_ae)
+
+    ae = (tf.concat(x_ae, axis=0), tf.concat(y_ae, axis=0))
+
+    pickle.dump(ae, open(dir,'wb'))
+    return ae
