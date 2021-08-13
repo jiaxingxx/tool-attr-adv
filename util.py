@@ -27,15 +27,12 @@ def normalize(img, label):
     return tf.cast(img, tf.float32) / 255., label
 
 @tf.function
-def get_x(img, label):
-    return img
+def get_x(x,y):
+    return x
 
 @tf.function
-def get_y(img, label):
-    return label
-
-def filt_ds(ds,l):
-    return ds.filter(lambda _,y: y == l)
+def get_y(x,y):
+    return y
 
 # get auc from scores
 def get_score(score, labels):
@@ -68,9 +65,8 @@ def lp_loss(y_true, y_pred, order):
     return np.linalg.norm(err, ord=order, axis=1)/err.shape[1]
 
 # lp norm loss of top q elements
-def lp_loss_q(y_true, y_pred, order):
+def lp_loss_q(y_true, y_pred, p=1.0, q=0.5):
     err = abs(y_true - y_pred)
-    q = 0.5
     thresh = np.expand_dims(np.quantile(err,q,axis=1), axis=1)
     err = np.where(err > thresh, err, np.zeros_like(err))
     return np.linalg.norm(err, ord=order, axis=1)/err.shape[1]
@@ -145,3 +141,16 @@ def plot_img(img, filename=None):
 
     if filename is not None:
         plt.savefig(filename, bbox_inches='tight', pad_inches=0.5)
+
+def filt_label_x(data, l):
+    f = data.filter(lambda _,y: y == l)
+    return f.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+
+def filt_correct(m, data):
+    pass
+
+def to_array(data):
+    return np.array(list(data.as_numpy_iterator()))
+
+def map_ds(data, map_fn):
+    return data.map(map_fn, num_parallel_calls=tf.data.AUTOTUNE)

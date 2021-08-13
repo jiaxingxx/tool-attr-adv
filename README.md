@@ -16,7 +16,7 @@ $ cd tool-attr-adv
 
 ### Environment
   * Python 3.8+
-  * TensorFlow 2.4+
+  * TensorFlow 2.4.0
 
 The base environment be set up as:
 ```bash

@@ -1,7 +1,10 @@
-import os, pickle
+import os
 import tensorflow as tf
+import numpy as np
 
-def train_pred(m, train, test, dir, n_samples=-1, n_epoch=50, bat_size=32):
+from tqdm import tqdm
+
+def train_pred(m, train, test, dir, n_epoch=50, bat_size=32):
     """ Trains a given model from predictions.
 
     Parameters
@@ -19,7 +22,7 @@ def train_pred(m, train, test, dir, n_samples=-1, n_epoch=50, bat_size=32):
         m = tf.keras.models.load_model(dir)
         return m
 
-    train_ds = train.shuffle(10000).take(n_samples).batch(bat_size)
+    train_ds = train.shuffle(10000).batch(bat_size)
     test_ds = test.batch(bat_size)
 
     m.compile(optimizer=tf.keras.optimizers.Adam(0.001),
@@ -43,8 +46,8 @@ def train_recons(m, train, test, dir, n_samples=-1, n_epoch=30, bat_size=32):
     ----------
 
     m: model being trained
-    train: training data
-    test: test data
+    train: training dataset
+    test: test dataset
     dir: directory to save and load the model
     n_epoch: number of epochs
     bat_size: batch size
@@ -54,20 +57,24 @@ def train_recons(m, train, test, dir, n_samples=-1, n_epoch=30, bat_size=32):
         m = tf.keras.models.load_model(dir)
         return m
 
+    #train_ds = tf.data.Dataset.zip((train,train)).shuffle(10000).batch(bat_size)
+    #test_ds = tf.data.Dataset.zip((test,test)).batch(bat_size)
+
     m.compile(optimizer=tf.keras.optimizers.Adam(0.001),
               loss=tf.keras.losses.MeanSquaredError())
 
-    h = m.fit(train, train,
+    h = m.fit(train,train,
               epochs=n_epoch,
               shuffle=True,
-              validation_data=(test, test))
+              validation_data=(test,test))
 
     m.save(dir)
 
     return m
 
-def gen_labels(m, data, bat_size=128):
-    """ Generates dataset containing (input, pred) for given model and inputs.
+
+def gen_pred(m, data, bat_size=128):
+    """ Generates dataset containing pred for given model and inputs.
 
     Parameters
     ----------
@@ -76,15 +83,14 @@ def gen_labels(m, data, bat_size=128):
     bat_size : batch size
     """
 
-    x_batch = data.map(lambda x,_: x,
-                       num_parallel_calls=tf.data.AUTOTUNE).batch(bat_size)
-    y_batch = x_batch.map(lambda x: tf.argmax(m(x), axis=1),
-                          num_parallel_calls=tf.data.AUTOTUNE)
-    x,y = x_batch.unbatch(), y_batch.unbatch()
+    ds = data.batch(bat_size)
+    pred = ds.map(lambda x,_: tf.argmax(m(x), axis=1),
+                  num_parallel_calls=tf.data.AUTOTUNE)
 
-    return tf.data.Dataset.zip((x,y))
+    return pred.unbatch()
 
-def gen_attr(m, data, attr_fn, dir):
+
+def gen_attr(m, data, attr_fn, attr_spec, dir):
     """ Generates and returns attributions.
 
     Parameters
@@ -92,18 +98,22 @@ def gen_attr(m, data, attr_fn, dir):
     m: model being queried
     data: data used to query model, labeled
     attr_fn: function used to generate attribution
+    attr_spec: tensorspec for attribution
     dir: directory to save and load the attribution data
     """
 
     if os.path.exists(dir):
-        return pickle.load(open(dir,'rb'))
+        return tf.data.experimental.load(dir, element_spec=attr_spec)
 
     attr = []
     for x,_ in tqdm(data):
-        attr.append(attr_fn(model,x))
+        attr.append(attr_fn(m,x))
 
-    pickle.dump(attr, open(dir,'wb'))
-    return attr
+    ds = tf.data.Dataset.from_tensor_slices(attr)
+    tf.data.experimental.save(ds, dir)
+
+    return ds
+
 
 def gen_ae(m, data, atk_fn, atk_args, dir, bat_size=128):
     """ Generates and returns adversarial examples.
@@ -118,16 +128,19 @@ def gen_ae(m, data, atk_fn, atk_args, dir, bat_size=128):
     """
 
     if os.path.exists(dir):
-        return pickle.load(open(dir,'rb'))
+        return tf.data.experimental.load(dir, element_spec=data.element_spec)
 
     xs, ys = [], []
-    for x,_ in data.batch(bat_size):
+    for x,_ in tqdm(data.batch(bat_size)):
         x_ae = atk_fn(m, x, **atk_args)
-        y_ae = np.argmax(model.predict(x_ae), axis=1)
+        y_ae = np.argmax(m.predict(x_ae), axis=1)
         xs.append(x_ae)
         ys.append(y_ae)
 
-    ae = (tf.concat(x_ae, axis=0), tf.concat(y_ae, axis=0))
+    ds_x = tf.data.Dataset.from_tensor_slices(tf.concat(xs, axis=0))
+    ds_y = tf.data.Dataset.from_tensor_slices(tf.concat(ys, axis=0))
 
-    pickle.dump(ae, open(dir,'wb'))
-    return ae
+    ds = tf.data.Dataset.zip((ds_x,ds_y))
+    tf.data.experimental.save(ds, dir)
+
+    return ds

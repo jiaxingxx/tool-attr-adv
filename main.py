@@ -6,7 +6,7 @@ from ml_util import *
 from attacks import *
 from attribution import *
 from models import *
-from training import *
+from gen_data import *
 
 # experiment arguments
 e = exp_from_arguments()
@@ -32,33 +32,17 @@ bat_size = 32
 latent_dim = 64
 order = 1.0
 
+# directories
 MODEL_DIR = f'experiments/{e.target}'
-RECONS_DIR = f'experiments/{e.target}/recons'
-DATA_DIR = f'experiments/{e.target}/data'
-ADV_DIR = f'experiments/{e.target}/data/{e.attack}_{e.epsilon}'
-EXP_DIR = f'figures/{e.target}_{e.recons}_{e.attr}_{e.attack}_{e.epsilon}'
+RECONS_DIR = f'{MODEL_DIR}/recons'
+DATA_DIR = f'{MODEL_DIR}/data'
+ATTR_DIR = f'{DATA_DIR}/{e.attr}'
+ADV_DIR = f'{DATA_DIR}/{e.attack}_{e.epsilon}'
+FIG_DIR = f'figures/{e.target}_{e.recons}_{e.attr}_{e.attack}_{e.epsilon}'
 
 # make directories if path does not exist
-dir_names = ['experiments', MODEL_DIR, RECONS_DIR, DATA_DIR, ADV_DIR, 'figures', EXP_DIR]
+dir_names = ['experiments', MODEL_DIR, RECONS_DIR, DATA_DIR, ATTR_DIR, ADV_DIR, 'figures', FIG_DIR]
 mkdir(dir_names)
-
-# processing dataset
-eprint('processing dataset ... ')
-x_train = e.train.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
-x_test = e.test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
-
-y_train = np.array(list(e.train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
-y_test = np.array(list(e.test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
-
-zeros = filt_ds(e.train, 0)
-
-for x,_ in zeros.batch(10):
-    plot_grads(x,x,filename='tt.png')
-    exit()
-
-exit()
-
-eprint('done\n')
 
 ### train target classifier ###
 eprint('configuring target classifier ... ')
@@ -73,82 +57,80 @@ eprint('done\n')
 
 ### generate attributions ###
 eprint('generating attributions ... ')
-g_train = gen_attr(model, e.train, eval(e.attr), f'{DATA_DIR}/{e.attr}_train')
-g_test = gen_attr(model, e.test, eval(e.attr), f'{DATA_DIR}/{e.attr}_test')
+g_train = gen_attr(model, e.train, eval(e.attr), e.attr_spec, f'{ATTR_DIR}/train')
+g_test = gen_attr(model, e.test, eval(e.attr), e.attr_spec, f'{ATTR_DIR}/test')
 eprint('done\n')
 
 ### generate adversarial examples ###
 eprint('generating adversarial examples ... ')
-
-### TODO: cleaner code + tqdm progress bar, batched vs. non-batched attacks
-
-adv_train_x, adv_train_y = gen_ae(model, e.train, eval(atk_method), atk_args, f'{ADV_DIR}/adv_train')
-adv_test_x, adv_test_y = gen_ae(model, e.test, eval(atk_method), atk_args, f'{ADV_DIR}/adv_train')
-
+ae_train = gen_ae(model, e.train, eval(atk_method), atk_args, f'{ADV_DIR}/ae_train')
+ae_test = gen_ae(model, e.test, eval(atk_method), atk_args, f'{ADV_DIR}/ae_test')
 eprint('done\n')
 
 ### generate explanations for adversarial images ###
 eprint('generating attributions for adversarial examples ...\n')
-
-if exists(f'{ADV_DIR}/{e.attr}_adv_train') and exists(f'{ADV_DIR}/{e.attr}_adv_test'):
-    g_adv_train = pickle.load(open(f'{ADV_DIR}/{e.attr}_adv_train','rb'))
-    g_adv_test = pickle.load(open(f'{ADV_DIR}/{e.attr}_adv_test','rb'))
-
-else:
-    g_adv_train, g_adv_test = [], []
-
-    for x in tqdm(adv_train_x):
-        g_adv_train.append(eval(e.attr)(model,x))
-
-    for x in tqdm(adv_test_x):
-        g_adv_test.append(eval(e.attr)(model,x))
-
-    g_adv_train, g_adv_test = np.array(g_adv_train), np.array(g_adv_test)
-
-    pickle.dump(g_adv_train, open(f'{ADV_DIR}/{e.attr}_adv_train','wb'))
-    pickle.dump(g_adv_test, open(f'{ADV_DIR}/{e.attr}_adv_test','wb'))
-
+g_ae_train = gen_attr(model, ae_train,
+                      attr_fn=eval(e.attr), attr_spec=e.attr_spec,
+                      dir=f'{ADV_DIR}/{e.attr}_ae_train')
+g_ae_test = gen_attr(model, ae_test,
+                     attr_fn=eval(e.attr), attr_spec=e.attr_spec,
+                     dir=f'{ADV_DIR}/{e.attr}_ae_test')
 eprint('done\n')
-
 
 ### plotting ###
 eprint('plotting ... ')
 
+x_train = e.train.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+x_test = e.test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+x_ae_train = ae_train.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+x_ae_test = ae_test.map(get_x, num_parallel_calls=tf.data.AUTOTUNE)
+
 # plot attributions
 plot_results([x_train, g_train, x_test, g_test],
             captions=['x_train',f'{e.attr}_train','x_test',f'{e.attr}_test'],
-            filename=f'{EXP_DIR}/attr_norm.png')
+            filename=f'{FIG_DIR}/attr_norm.png')
 
 # plot attributions of adversarial samples
-plot_results(imgs=[adv_train_x, g_adv_train, adv_test_x, g_adv_test],
-            captions=['adv_train', f'{e.attr}_adv_train', 'adv_test', f'{e.attr}_adv_test'],
-            filename=f'{EXP_DIR}/attr_adv.png')
+plot_results(imgs=[x_ae_train, g_ae_train, x_ae_test, g_ae_test],
+            captions=['ae_train', f'{e.attr}_ae_train', 'ae_test', f'{e.attr}_ae_test'],
+            filename=f'{FIG_DIR}/attr_ae.png')
 
 eprint('done\n')
-
 
 ### reconstruction ###
 eprint('evaluating ...\n')
 
-N_LABELS = 10
+N_LABELS = 1
 
-xc_train = gen_labels(model, e.train)
-xc_test = gen_labels(model, e.test)
+#xc_train = gen_labels(model, e.train)
+#xc_test = gen_labels(model, e.test)
 
-cls_train = np.array(list(xc_train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
-cls_test = np.array(list(xc_test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+#cls_train = np.array(list(xc_train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+#cls_test = np.array(list(xc_test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE).as_numpy_iterator()))
+
+c_train = gen_pred(model, e.train)
+c_test = gen_pred(model, e.test)
+
+y_train = to_array(map_ds(e.train, get_y))
+y_test = to_array(map_ds(e.test, get_y))
+
+g_train = to_array(g_train)
+g_test = to_array(g_test)
+
+g_ae_train = to_array(g_ae_train)
+g_ae_test = to_array(g_ae_test)
 
 for t_label in range(N_LABELS):
 
     ### filtering ###
-    tar_train = np.logical_and(y_train == cls_train, y_train == t_label)
-    tar_test = np.logical_and(y_test == cls_test, y_test == t_label)
+    tar_train = np.logical_and(y_train == c_train, y_train == t_label)
+    tar_test = np.logical_and(y_test == c_test, y_test == t_label)
 
-    cond_train = np.logical_and(adv_train_y == t_label, y_train != t_label)
-    cond_test = np.logical_and(adv_test_y == t_label, y_test != t_label)
+    cond_train = np.logical_and(ae_train_y == t_label, y_train != t_label)
+    cond_test = np.logical_and(ae_test_y == t_label, y_test != t_label)
 
-    g_adv_train_t = g_adv_train[cond_train]
-    g_adv_test_t = g_adv_test[cond_test]
+    g_ae_train_t = g_ae_train[cond_train]
+    g_ae_test_t = g_ae_test[cond_test]
 
     g_train_t = g_train[tar_train]
     g_test_t = g_test[tar_test]
@@ -156,7 +138,7 @@ for t_label in range(N_LABELS):
     ### train autoencoder for reconstruction ###
     eprint('configuring autoencoder ... ')
 
-    ae = train_recons(eval(e.recons)(g_train[0].shape, latent_dim),
+    ae = train_recons(eval(e.recons)(e.attr_shape, latent_dim),
                       train=g_train_t,
                       test=g_test_t,
                       dir=f'{RECONS_DIR}/{e.recons}_{e.attr}_{t_label}',
@@ -166,7 +148,7 @@ for t_label in range(N_LABELS):
 
     ### evaluation ###
     eprint(f'... label {t_label} ... ')
-    loss_fn = lambda x,y: lp_loss_q(x,y,order=order)
+    loss_fn = lambda x,y: lp_loss_q(x,y,p=order,q=0.0)
 
     # predictions
     r_train = ae.predict(g_train_t)
@@ -218,7 +200,7 @@ for t_label in range(N_LABELS):
                           f'{e.attr}_test', f'recons_test',
                           f'{e.attr}_adv_train', f'recons_adv_train',
                           f'{e.attr}_adv_test', f'recons_adv_test'],
-                filename=f'{EXP_DIR}/recons_{t_label}.png')
+                filename=f'{FIG_DIR}/recons_{t_label}.png')
 
     eprint('done\n')
 

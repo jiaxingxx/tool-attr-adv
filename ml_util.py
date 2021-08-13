@@ -33,6 +33,8 @@ def exp_from_arguments():
     # target, reconstruction, test datasets
     ret.train, ret.test = load_dataset(ret.data)
     ret.input_shape = ret.train.element_spec[0].shape
+    ret.attr_shape = (*ret.input_shape[:-1],1)
+    ret.attr_spec = tf.TensorSpec(shape=ret.attr_shape, dtype=float)
 
     return ret
 
