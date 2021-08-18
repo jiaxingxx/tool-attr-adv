@@ -69,7 +69,7 @@ def lp_loss_q(y_true, y_pred, p=1.0, q=0.5):
     err = abs(y_true - y_pred)
     thresh = np.expand_dims(np.quantile(err,q,axis=1), axis=1)
     err = np.where(err > thresh, err, np.zeros_like(err))
-    return np.linalg.norm(err, ord=order, axis=1)/err.shape[1]
+    return np.linalg.norm(err, ord=p, axis=1)/err.shape[1]
 
 # helper function for anomaly detection
 def detect(model, data, thresh, loss_fn):

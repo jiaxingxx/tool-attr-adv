@@ -56,3 +56,5 @@ cifar10_resnet	cae	gradient	bim	0.03	1.0	7	0.7916	0.8799	0.8799	0.6000	874	5728
 cifar10_resnet	cae	gradient	bim	0.03	1.0	8	0.6493	0.7691	0.7691	0.5437	866	2733
 cifar10_resnet	cae	gradient	bim	0.03	1.0	9	0.6795	0.7995	0.7995	0.5239	853	3396
 mnist_cnn	ae	gradient	pgd	0.03	1.0	0	0.9460	0.5625	0.5625	0.9219	973	64
+mnist_cnn	ae	gradient	pgd	0.03	1.0	0	0.9555	0.5660	0.5660	0.9525	980	53
+mnist_cnn	ae	gradient	pgd	0.1	1.0	0	0.9683	0.9701	0.9701	0.9962	980	1102

@@ -61,9 +61,14 @@ g_train = gen_attr(model, e.train, eval(e.attr), e.attr_spec, f'{ATTR_DIR}/train
 g_test = gen_attr(model, e.test, eval(e.attr), e.attr_spec, f'{ATTR_DIR}/test')
 eprint('done\n')
 
+import time
 ### generate adversarial examples ###
 eprint('generating adversarial examples ... ')
+s = time.time()
 ae_train = gen_ae(model, e.train, eval(atk_method), atk_args, f'{ADV_DIR}/ae_train')
+e = time.time()
+print(e-s)
+exit()
 ae_test = gen_ae(model, e.test, eval(atk_method), atk_args, f'{ADV_DIR}/ae_test')
 eprint('done\n')
 
@@ -117,14 +122,20 @@ y_test = to_array(map_ds(e.test, get_y))
 g_train = to_array(g_train)
 g_test = to_array(g_test)
 
+ae_train_y = to_array(ae_train.map(get_y, num_parallel_calls=tf.data.AUTOTUNE))
+ae_test_y = to_array(ae_test.map(get_y, num_parallel_calls=tf.data.AUTOTUNE))
+
 g_ae_train = to_array(g_ae_train)
 g_ae_test = to_array(g_ae_test)
 
 for t_label in range(N_LABELS):
 
     ### filtering ###
-    tar_train = np.logical_and(y_train == c_train, y_train == t_label)
-    tar_test = np.logical_and(y_test == c_test, y_test == t_label)
+    #tar_train = np.logical_and(y_train == c_train, y_train == t_label)
+    #tar_test = np.logical_and(y_test == c_test, y_test == t_label)
+
+    tar_train = y_train == t_label
+    tar_test = y_test == t_label
 
     cond_train = np.logical_and(ae_train_y == t_label, y_train != t_label)
     cond_test = np.logical_and(ae_test_y == t_label, y_test != t_label)
@@ -153,14 +164,14 @@ for t_label in range(N_LABELS):
     # predictions
     r_train = ae.predict(g_train_t)
     r_test = ae.predict(g_test_t)
-    r_adv_train = ae.predict(g_adv_train_t)
-    r_adv_test = ae.predict(g_adv_test_t)
+    r_ae_train = ae.predict(g_ae_train_t)
+    r_ae_test = ae.predict(g_ae_test_t)
 
     # losses
     train_loss = loss_fn(flatten_ds(g_train_t), flatten_ds(r_train))
     test_loss = loss_fn(flatten_ds(g_test_t), flatten_ds(r_test))
-    train_loss_adv = loss_fn(flatten_ds(g_adv_train_t), flatten_ds(r_adv_train))
-    test_loss_adv = loss_fn(flatten_ds(g_adv_test_t), flatten_ds(r_adv_test))
+    train_loss_adv = loss_fn(flatten_ds(g_ae_train_t), flatten_ds(r_ae_train))
+    test_loss_adv = loss_fn(flatten_ds(g_ae_test_t), flatten_ds(r_ae_test))
 
     # threshold
     loss_norm = test_loss
@@ -170,8 +181,8 @@ for t_label in range(N_LABELS):
     # anomaly detection
     pred_norm_tr = detect(ae, g_train_t, thresh, loss_fn)
     pred_norm_te = detect(ae, g_test_t, thresh, loss_fn)
-    pred_anom_tr = detect(ae, g_adv_train_t, thresh, loss_fn)
-    pred_anom_te = detect(ae, g_adv_test_t, thresh, loss_fn)
+    pred_anom_tr = detect(ae, g_ae_train_t, thresh, loss_fn)
+    pred_anom_te = detect(ae, g_ae_test_t, thresh, loss_fn)
 
     # prediction and ground truth
     y_score = np.concatenate((test_loss, train_loss_adv, test_loss_adv))
@@ -181,7 +192,7 @@ for t_label in range(N_LABELS):
     # get stats
     exp_conf = [e.target, e.recons, e.attr, e.attack, e.epsilon, order, t_label]
     exp_stat = get_stats(y_pred, y_true) + (get_score(y_score, y_true), )
-    exp_len = [len(g_test_t), len(g_adv_train_t)+len(g_adv_test_t)]
+    exp_len = [len(g_test_t), len(g_ae_train_t)+len(g_ae_test_t)]
 
     bench_all = '\t'.join(map(str, exp_conf)) + '\t'
     bench_all += '\t'.join(map(lambda i: f'{i:.4f}', exp_stat)) + '\t'
@@ -195,11 +206,11 @@ for t_label in range(N_LABELS):
 
     # plotting
     plot_results([g_train_t, r_train, g_test_t, r_test,
-                  g_adv_train_t, r_adv_train, g_adv_test_t, r_adv_test],
+                  g_ae_train_t, r_ae_train, g_ae_test_t, r_ae_test],
                 captions=[f'{e.attr}_train', f'recons_train',
                           f'{e.attr}_test', f'recons_test',
-                          f'{e.attr}_adv_train', f'recons_adv_train',
-                          f'{e.attr}_adv_test', f'recons_adv_test'],
+                          f'{e.attr}_ae_train', f'recons_ae_train',
+                          f'{e.attr}_ae_test', f'recons_ae_test'],
                 filename=f'{FIG_DIR}/recons_{t_label}.png')
 
     eprint('done\n')
